@@ -101,6 +101,9 @@ namespace ImageProcessor.Common.Helpers
         /// </returns>
         internal static HashSet<Assembly> GetAllAssemblies()
         {
+            return new HashSet<Assembly>();
+
+
             using (UpgradeableReadLock locker = new UpgradeableReadLock(Locker))
             {
                 if (allAssemblies == null)
