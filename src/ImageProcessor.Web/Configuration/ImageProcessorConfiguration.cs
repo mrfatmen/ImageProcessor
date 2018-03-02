@@ -7,16 +7,18 @@
 //   Encapsulates methods to allow the retrieval of ImageProcessor settings.
 // </summary>
 // --------------------------------------------------------------------------------------------------------------------
+
+using ImageProcessor.Web.Caching;
+
 namespace ImageProcessor.Web.Configuration
 {
     using System;
     using System.Collections.Concurrent;
     using System.Collections.Generic;
+    using System.Configuration;
     using System.Linq;
 
     using ImageProcessor.Configuration;
-    using ImageProcessor.Processors;
-    using ImageProcessor.Web.Caching;
     using ImageProcessor.Web.Processors;
     using ImageProcessor.Web.Services;
 
@@ -74,7 +76,7 @@ namespace ImageProcessor.Web.Configuration
         public static ImageProcessorConfiguration Instance => Lazy.Value;
 
         /// <summary>
-        /// Gets the collection of available procesors to run.
+        /// Gets the collection of available processors to run.
         /// </summary>
         public ConcurrentDictionary<Type, Dictionary<string, string>> AvailableWebGraphicsProcessors { get; } = new ConcurrentDictionary<Type, Dictionary<string, string>>();
 
@@ -94,14 +96,34 @@ namespace ImageProcessor.Web.Configuration
         public int ImageCacheMaxDays { get; private set; }
 
         /// <summary>
+        /// Gets the value indicating if the disk cache will apply file change monitors that can be used to invalidate the cache
+        /// </summary>
+        public bool UseFileChangeMonitors { get; private set; }
+
+        /// <summary>
         /// Gets the browser cache max days.
         /// </summary>
         public int BrowserCacheMaxDays { get; private set; }
 
         /// <summary>
+        /// Gets or sets the maximum number folder levels to nest the cached images.
+        /// </summary>
+        public int FolderDepth { get; set; }
+
+        /// <summary>
+        /// Gets or sets a value indicating whether to periodically trim the cache.
+        /// </summary>
+        public bool TrimCache { get; set; }
+
+        /// <summary>
         /// Gets the image cache settings.
         /// </summary>
         public Dictionary<string, string> ImageCacheSettings { get; private set; }
+
+        /// <summary>
+        /// Gets the image cache rewrite path cache expiry.
+        /// </summary>
+        public TimeSpan ImageCacheRewritePathExpiry { get; private set; }
 
         /// <summary>
         /// Gets a value indicating whether to preserve exif meta data.
@@ -120,7 +142,7 @@ namespace ImageProcessor.Web.Configuration
         public bool FixGamma => GetImageProcessingSection().FixGamma;
 
         /// <summary>
-        /// Gets a value indicating whether whether to intercept all image requests including ones
+        /// Gets a value indicating whether to intercept all image requests including ones
         /// without querystring parameters.
         /// </summary>
         public bool InterceptAllRequests => GetImageProcessingSection().InterceptAllRequests;
@@ -236,7 +258,9 @@ namespace ImageProcessor.Web.Configuration
         /// Returns the <see cref="T:ImageProcessor.Web.Config.ImageProcessingSection.SettingElementCollection"/> for the given plugin.
         /// </summary>
         /// <param name="name">
-        /// The name of the plugin to get the settings for.
+        /// The name of the plugin to get the settings for. Override settings by adding appsettings in web.config using the format 
+        /// ImageProcessor.&lt;.plugin-name.&gt;.&lt;settingKey&gt; e.g. 'ImageProcessor.GaussianBlur.MaxSize'. 
+        /// The key must exist in the config section for the appsetting to apply"
         /// </param>
         /// <returns>
         /// The <see cref="T:ImageProcessor.Web.Config.ImageProcessingSection.SettingElementCollection"/> for the given plugin.
@@ -255,6 +279,10 @@ namespace ImageProcessor.Web.Configuration
                 settings = pluginElement.Settings
                     .Cast<SettingElement>()
                     .ToDictionary(setting => setting.Key, setting => setting.Value);
+
+                // Override the settings found in config section with values in the app.config / deployment slot settings
+                OverrideDefaultSettingsWithAppSettingsValue(settings, name);
+
             }
             else
             {
@@ -270,7 +298,7 @@ namespace ImageProcessor.Web.Configuration
         /// Loads image services from configuration.
         /// </summary>
         /// <exception cref="TypeLoadException">
-        /// Thrown when an <see cref="IGraphicsProcessor"/> cannot be loaded.
+        /// Thrown when an <see cref="IImageService"/> cannot be loaded.
         /// </exception>
         private void LoadImageServices()
         {
@@ -282,50 +310,30 @@ namespace ImageProcessor.Web.Configuration
 
                 if (type == null)
                 {
-                    string message = "Couldn't load IImageService: " + config.Type;
+                    string message = $"Couldn\'t load IImageService: {config.Type}";
                     ImageProcessorBootstrapper.Instance.Logger.Log<ImageProcessorConfiguration>(message);
                     throw new TypeLoadException(message);
                 }
 
                 IImageService imageService = Activator.CreateInstance(type) as IImageService;
-                if (!string.IsNullOrWhiteSpace(config.Prefix))
+
+                if (imageService != null)
                 {
-                    if (imageService != null)
-                    {
-                        imageService.Prefix = config.Prefix;
-                    }
+                    string name = config.Name ?? imageService.GetType().Name;
+                    imageService.Prefix = config.Prefix;
+                    imageService.Settings = this.GetServiceSettings(name);
+                    imageService.WhiteList = this.GetServiceWhitelist(name);
                 }
+
 
                 this.ImageServices.Add(imageService);
             }
 
-            // Add the available settings.
-            foreach (IImageService service in this.ImageServices)
-            {
-                string name = service.GetType().Name;
-                Dictionary<string, string> settings = this.GetServiceSettings(name);
-                if (settings.Any())
-                {
-                    service.Settings = settings;
-                }
-                else if (service.Settings == null)
-                {
-                    // I've noticed some developers are not initializing 
-                    // the settings in their implentations.
-                    service.Settings = new Dictionary<string, string>();
-                }
-
-                Uri[] whitelist = this.GetServiceWhitelist(name);
-
-                if (whitelist.Any())
-                {
-                    service.WhiteList = this.GetServiceWhitelist(name);
-                }
-            }
         }
 
         /// <summary>
-        /// Returns the <see cref="SettingElementCollection"/> for the given plugin.
+        /// Returns the <see cref="SettingElementCollection"/> for the given plugin. 
+        /// Override the settings using appSettings using the following format "ImageProcessor.&lt;PluginName&gt;.&lt;settingKey&gt; e.g. 'ImageProcessor.CloudImageService.Host'. The key must exist in the config section for the appsetting to apply"
         /// </summary>
         /// <param name="name">
         /// The name of the plugin to get the settings for.
@@ -347,6 +355,9 @@ namespace ImageProcessor.Web.Configuration
                 settings = serviceElement.Settings
                     .Cast<SettingElement>()
                     .ToDictionary(setting => setting.Key, setting => setting.Value);
+
+                // Override the config section settings with values found in the app.config / deployment slot settings
+                OverrideDefaultSettingsWithAppSettingsValue(settings, name);
             }
             else
             {
@@ -375,8 +386,9 @@ namespace ImageProcessor.Web.Configuration
             Uri[] whitelist = { };
             if (serviceElement != null)
             {
-                whitelist = serviceElement.WhiteList.Cast<ImageSecuritySection.SafeUrl>()
-                                          .Select(s => s.Url).ToArray();
+                whitelist = serviceElement.WhiteList
+                    .Cast<ImageSecuritySection.SafeUrl>()
+                    .Select(s => s.Url).ToArray();
             }
 
             return whitelist;
@@ -391,34 +403,69 @@ namespace ImageProcessor.Web.Configuration
         {
             if (this.ImageCache == null)
             {
-                string curentCache = GetImageCacheSection().CurrentCache;
+                string currentCache = GetImageCacheSection().CurrentCache;
                 ImageCacheSection.CacheElementCollection caches = imageCacheSection.ImageCaches;
 
                 foreach (ImageCacheSection.CacheElement cache in caches)
                 {
-                    if (cache.Name == curentCache)
+                    if (cache.Name == currentCache)
                     {
                         Type type = Type.GetType(cache.Type);
 
                         if (type == null)
                         {
-                            string message = "Couldn't load IImageCache: " + cache.Type;
+                            string message = $"Couldn\'t load IImageCache: {cache.Type}";
                             ImageProcessorBootstrapper.Instance.Logger.Log<ImageProcessorConfiguration>(message);
                             throw new TypeLoadException(message);
                         }
 
                         this.ImageCache = type;
                         this.ImageCacheMaxDays = cache.MaxDays;
+                        this.UseFileChangeMonitors = cache.UseFileChangeMonitors;
                         this.BrowserCacheMaxDays = cache.BrowserMaxDays;
+                        this.TrimCache = cache.TrimCache;
+                        this.FolderDepth = cache.FolderDepth;
+                        this.ImageCacheRewritePathExpiry = cache.CachedRewritePathExpiry;
                         this.ImageCacheSettings = cache.Settings
                                                        .Cast<SettingElement>()
                                                        .ToDictionary(setting => setting.Key, setting => setting.Value);
+                        
+                        //override the settings found with values found in the app.config / deployment slot settings
+                        OverrideDefaultSettingsWithAppSettingsValue(this.ImageCacheSettings, currentCache);
+
                         break;
                     }
                 }
             }
         }
         #endregion
+
+        /// <summary>
+        /// Override the default settings discovered in the config sections, with settings stored in appsettings of app.config or deployment slot settings (if available)
+        /// This will allow the settings to be controlled per deployment slot within Microsoft Azure and similar services
+        /// The setting must exist in the config section to be overwritten by the appconfig values
+        /// </summary>
+        /// <param name="defaultSettings">The list of settings discovered in config section which will be modified with settings found in appSettings</param>
+        /// <param name="serviceOrPluginName">The name of the section, used to construct the appSetting key name</param>
+        private void OverrideDefaultSettingsWithAppSettingsValue(Dictionary<string, string> defaultSettings, string serviceOrPluginName)
+        {
+
+            Dictionary<string, string> copyOfSettingsForEnumeration = new Dictionary<string, string>(defaultSettings);
+            
+            // For each default setting found in the config section
+            foreach (var setting in copyOfSettingsForEnumeration)
+            {
+                // Check the app settings for a key in the specified format
+                string appSettingKeyName = string.Format("ImageProcessor.{0}.{1}", serviceOrPluginName, setting.Key);
+                if (!String.IsNullOrEmpty(ConfigurationManager.AppSettings[appSettingKeyName]))
+                {
+                    // If the key is found in app settings use the app settings value rather than the value in the config section
+                    defaultSettings[setting.Key] = ConfigurationManager.AppSettings[appSettingKeyName];
+                }
+            }
+
+        }
+        
         #endregion
     }
 }
