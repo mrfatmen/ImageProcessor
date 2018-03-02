@@ -9,7 +9,7 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>ImageProcessor.Web.Plugins.PostProcessor</RootNamespace>
     <AssemblyName>ImageProcessor.Web.Plugins.PostProcessor</AssemblyName>
-    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <TargetFrameworkProfile />
   </PropertyGroup>
@@ -21,6 +21,7 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <DocumentationFile>bin\Debug\ImageProcessor.Web.Plugins.PostProcessor.xml</DocumentationFile>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
@@ -29,6 +30,7 @@
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <DocumentationFile>bin\Release\ImageProcessor.Web.Plugins.PostProcessor.xml</DocumentationFile>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
@@ -42,7 +44,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="ApplicationEvents.cs" />
+    <Compile Include="PostProcessorApplicationEvents.cs" />
     <Compile Include="PostProcessingResultEventArgs.cs" />
     <Compile Include="PostProcessor.cs" />
     <Compile Include="PostProcessorBootstrapper.cs" />
@@ -62,9 +64,6 @@
     <EmbeddedResource Include="Resources\Unmanaged\x86\jpegtran.exe" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="Resources\Unmanaged\x86\pngout.exe" />
-  </ItemGroup>
-  <ItemGroup>
     <EmbeddedResource Include="Resources\Unmanaged\x86\pngquant.exe" />
   </ItemGroup>
   <ItemGroup>
@@ -76,6 +75,15 @@
       <Project>{3b5dd734-fb7a-487d-8ce6-55e7af9aea7e}</Project>
       <Name>ImageProcessor</Name>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\Unmanaged\x86\libjpeg-62.dll" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\Unmanaged\x86\cjpeg.exe" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\Unmanaged\x86\TruePNG.exe" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

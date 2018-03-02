@@ -9,10 +9,11 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>ImageProcessor.Web</RootNamespace>
     <AssemblyName>ImageProcessor.Web</AssemblyName>
-    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <SolutionDir Condition="$(SolutionDir) == '' Or $(SolutionDir) == '*Undefined*'">..\..\</SolutionDir>
     <RestorePackages>true</RestorePackages>
+    <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -22,6 +23,7 @@
     <DefineConstants>TRACE;DEBUG;USE_CSHARP_SQLITE, NET45</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <DocumentationFile>bin\Debug\ImageProcessor.Web.xml</DocumentationFile>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
@@ -30,8 +32,12 @@
     <DefineConstants>TRACE;USE_CSHARP_SQLITE, NET45</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <DocumentationFile>bin\Release\ImageProcessor.Web.xml</DocumentationFile>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="Microsoft.IO.RecyclableMemoryStream, Version=1.2.2.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
+      <HintPath>..\..\packages\Microsoft.IO.RecyclableMemoryStream.1.2.2\lib\net45\Microsoft.IO.RecyclableMemoryStream.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Configuration" />
     <Reference Include="System.Core" />
@@ -45,6 +51,12 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Caching\CachedImageHelper.cs" />
+    <Compile Include="Caching\AsyncKeyLock.cs" />
+    <Compile Include="Caching\DoormanPool.cs" />
+    <Compile Include="Caching\Doorman.cs" />
+    <Compile Include="Caching\IImageCacheExtended.cs" />
+    <Compile Include="Caching\MemoryStreamPool.cs" />
     <Compile Include="Caching\CachedImage.cs" />
     <Compile Include="Caching\DiskCache.cs" />
     <Compile Include="Caching\IImageCache.cs" />
@@ -54,7 +66,6 @@
     <Compile Include="Extensions\ObjectExtensions.cs" />
     <Compile Include="Extensions\TypeInferenceExtensions.cs" />
     <Compile Include="Extensions\TypeInitializationExtensions.cs" />
-    <Compile Include="Helpers\AsyncDuplicateLock.cs" />
     <Compile Include="Helpers\ProcessQueryStringEventArgs.cs" />
     <Compile Include="Helpers\QuerystringParser\Converters\GenericConvertableConverter.cs" />
     <Compile Include="Helpers\QuerystringParser\Converters\EnumConverter.cs" />
@@ -68,12 +79,15 @@
     <Compile Include="Helpers\QuerystringParser\QueryParamParser.cs" />
     <Compile Include="Helpers\QuerystringParser\Converters\GenericArrayTypeConverter.cs" />
     <Compile Include="Helpers\QuerystringParser\Converters\GenericListTypeConverter.cs" />
+    <Compile Include="Helpers\UrlParser.cs" />
     <Compile Include="Helpers\ValidatingRequestEventArgs.cs" />
     <Compile Include="Processors\DetectEdges.cs" />
     <Compile Include="Processors\EntropyCrop.cs" />
+    <Compile Include="Processors\Gamma.cs" />
     <Compile Include="Processors\Halftone.cs" />
     <Compile Include="Processors\Hue.cs" />
     <Compile Include="Processors\Mask.cs" />
+    <Compile Include="Processors\Background.cs" />
     <Compile Include="Processors\Overlay.cs" />
     <Compile Include="Processors\Pixelate.cs" />
     <Compile Include="Processors\ReplaceColor.cs" />
@@ -135,6 +149,12 @@
       <SubType>Designer</SubType>
     </EmbeddedResource>
     <EmbeddedResource Include="Configuration\Resources\security.config.transform" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <Analyzer Include="..\..\packages\ConfigureAwaitChecker.Analyzer.1.0.0\analyzers\dotnet\cs\ConfigureAwaitChecker.dll" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
