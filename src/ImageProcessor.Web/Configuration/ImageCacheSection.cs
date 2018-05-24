@@ -29,15 +29,9 @@ namespace ImageProcessor.Web.Configuration
         [ConfigurationProperty("currentCache", DefaultValue = "DiskCache", IsRequired = true)]
         public string CurrentCache
         {
-            get
-            {
-                return (string)this["currentCache"];
-            }
+            get => (string)this["currentCache"];
 
-            set
-            {
-                this["currentCache"] = value;
-            }
+            set => this["currentCache"] = value;
         }
 
         /// <summary>
@@ -60,9 +54,7 @@ namespace ImageProcessor.Web.Configuration
         /// <returns>The cache configuration section from the current application configuration.</returns>
         public static ImageCacheSection GetConfiguration()
         {
-            ImageCacheSection imageCacheSection = ConfigurationManager.GetSection("imageProcessor/caching") as ImageCacheSection;
-
-            if (imageCacheSection != null)
+            if (ConfigurationManager.GetSection("imageProcessor/caching") is ImageCacheSection imageCacheSection)
             {
                 return imageCacheSection;
             }
@@ -90,9 +82,9 @@ namespace ImageProcessor.Web.Configuration
             [ConfigurationProperty("name", DefaultValue = "", IsRequired = true)]
             public string Name
             {
-                get { return (string)this["name"]; }
+                get => (string)this["name"];
 
-                set { this["name"] = value; }
+                set => this["name"] = value;
             }
 
             /// <summary>
@@ -102,9 +94,9 @@ namespace ImageProcessor.Web.Configuration
             [ConfigurationProperty("type", DefaultValue = "", IsRequired = true)]
             public string Type
             {
-                get { return (string)this["type"]; }
+                get => (string)this["type"];
 
-                set { this["type"] = value; }
+                set => this["type"] = value;
             }
 
             /// <summary>
@@ -116,15 +108,42 @@ namespace ImageProcessor.Web.Configuration
             [IntegerValidator(ExcludeRange = false, MinValue = -1)]
             public int MaxDays
             {
-                get
-                {
-                    return (int)this["maxDays"];
-                }
+                get => (int)this["maxDays"];
 
-                set
-                {
-                    this["maxDays"] = value;
-                }
+                set => this["maxDays"] = value;
+            }
+            
+            /// <summary>
+            /// Gets or sets the maximum number of minutes to store a cached image reference in memory.
+            /// </summary>
+            /// <value>The maximum number of minutes to store a cached image reference in memory</value>
+            /// <remarks>Defaults to 1 if not set.</remarks>
+            [ConfigurationProperty("memoryMaxMinutes", DefaultValue = "1", IsRequired = false)]
+            [IntegerValidator(ExcludeRange = false, MinValue = -1)]
+            public int MaxMinutes
+            {
+                get => (int)this["memoryMaxMinutes"];
+
+                set => this["memoryMaxMinutes"] = value;
+            }
+
+            /// <summary>
+            /// Gets or sets a value indicating whether the cache will apply file change monitors that can be used to invalidate the cache
+            /// </summary>
+            /// <value>True or False to enable or disable this setting</value>
+            /// <remarks>
+            /// Defaults to false, if this is set to true a file change monitor will be created for each cached file that Image Processor creates. 
+            /// This could be useful if you want to be able to delete the cached image files in order to trigger the server cache invalidation, however
+            /// if this setting is enabled and there are a lot of Image Processor cache files, this could end up causing some issues:
+            /// * Performance penalties if hosting on a UNC share
+            /// * ASP.Net app domain restarts if using FCNMode="Single" since the FCN buffer can overflow
+            /// </remarks>
+            [ConfigurationProperty("useFileChangeMonitors", DefaultValue = false, IsRequired = false)]
+            public bool UseFileChangeMonitors
+            {
+                get => (bool)this["useFileChangeMonitors"];
+
+                set => this["useFileChangeMonitors"] = value;
             }
 
             /// <summary>
@@ -166,10 +185,48 @@ namespace ImageProcessor.Web.Configuration
                     return maxDays;
                 }
 
-                set
-                {
-                    this["browserMaxDays"] = value;
-                }
+                set => this["browserMaxDays"] = value;
+            }
+
+            /// <summary>
+            /// Gets or sets the number of minutes to store the rewritten CDN path in the cache
+            /// </summary>
+            /// <value>The number of minutes to store the rewritten CDN path in the cache</value>
+            /// <remarks>Defaults to <c>0:1:0</c> if not set.</remarks>
+            [ConfigurationProperty("cachedRewritePathExpiry", DefaultValue = "0:1:0", IsRequired = false)]
+            [PositiveTimeSpanValidator]
+            public TimeSpan CachedRewritePathExpiry
+            {
+                get => (TimeSpan)this["cachedRewritePathExpiry"];
+
+                set => this["cachedRewritePathExpiry"] = value;
+            }
+
+            /// <summary>
+            /// Gets or sets a value indicating whether to periodically trim the cache.
+            /// </summary>
+            /// <remarks>
+            /// Defaults to true.
+            /// </remarks>
+            [ConfigurationProperty("trimCache", DefaultValue = true, IsRequired = false)]
+            public bool TrimCache
+            {
+                get => (bool)this["trimCache"];
+
+                set => this["trimCache"] = value;
+            }
+
+            /// <summary>
+            /// Gets or sets the maximum number folder levels to nest the cached images.
+            /// </summary>
+            /// <remarks>Defaults to 6 if not set.</remarks>
+            [ConfigurationProperty("folderDepth", DefaultValue = "6", IsRequired = false)]
+            [IntegerValidator(ExcludeRange = false, MinValue = 0)]
+            public int FolderDepth
+            {
+                get => (int)this["folderDepth"];
+
+                set => this["folderDepth"] = value;
             }
 
             /// <summary>
@@ -267,10 +324,7 @@ namespace ImageProcessor.Web.Configuration
             /// </returns>
             public CacheElement this[int index]
             {
-                get
-                {
-                    return (CacheElement)BaseGet(index);
-                }
+                get => (CacheElement)this.BaseGet(index);
 
                 set
                 {
